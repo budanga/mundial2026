@@ -1,25 +1,62 @@
 {
   "expo": {
-    "name": "mundial2026",
+    "name": "Mundial 2026",
     "slug": "mundial2026",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "scheme": "mundial2026",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.personal.mundial2026",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      "package": "com.personal.mundial2026",
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#C9A84C",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-background-fetch"
+      ],
+      [
+        "expo-task-manager"
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "splash": {
+      "backgroundColor": "#08111E",
+      "resizeMode": "contain"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a1832a8a-e36b-44f7-ac8e-5649b5916092"
+      }
     }
   }
 }

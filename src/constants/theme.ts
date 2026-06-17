@@ -8,9 +8,9 @@ export const Colors = {
   inputBg: '#1A2A45',
 
   // Accents
-  gold: '#C9A84C',
-  goldLight: '#F0D080',
-  goldDim: '#8B7232',
+  gold: '#FF8849',
+  goldLight: '#FFAF82',
+  goldDim: '#C4571A',
 
   // Status
   live: '#E53935',
@@ -23,11 +23,11 @@ export const Colors = {
   textPrimary: '#FFFFFF',
   textSecondary: '#8FA8C8',
   textMuted: '#4A6080',
-  textGold: '#C9A84C',
+  textGold: '#FF8849',
 
   // Borders
   border: '#1E3050',
-  borderGold: '#C9A84C40',
+  borderGold: '#FF884940',
 
   // Groups
   qualify1st: '#1A4D2E',   // top 2 - green
@@ -37,7 +37,7 @@ export const Colors = {
 
   // Tab bar
   tabBar: '#091524',
-  tabActive: '#C9A84C',
+  tabActive: '#FF8849',
   tabInactive: '#3D5470',
 } as const;
 

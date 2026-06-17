@@ -1,38 +1,43 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import isToday from 'dayjs/plugin/isToday';
 import isTomorrow from 'dayjs/plugin/isTomorrow';
 import isYesterday from 'dayjs/plugin/isYesterday';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/es';
+
+// Set dayjs locale to Spanish globally
+dayjs.locale('es');
 
 dayjs.extend(utc);
-dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
+dayjs.extend(relativeTime);
 dayjs.extend(isToday);
 dayjs.extend(isTomorrow);
 dayjs.extend(isYesterday);
-dayjs.extend(relativeTime);
 
 /**
- * Format an ISO string to local time: "7:00 PM"
+ * Format an ISO string to local time: "19:00"
  */
 export function formatLocalTime(isoString: string): string {
-  return dayjs(isoString).format('h:mm A');
+  return dayjs(isoString).format('HH:mm');
 }
 
 /**
  * Format an ISO string to a section header date:
- * "Today • Tuesday, June 16" / "Tomorrow • ..." / "Wednesday, June 17"
+ * "HOY • martes, 16 de junio" / "MAÑANA • ..." / "miércoles, 17 de junio"
  */
 export function formatSectionDate(isoString: string): string {
   const d = dayjs(isoString);
-  const dateStr = d.format('dddd, MMMM D');
-  if (d.isToday()) return `Today • ${dateStr}`;
-  if (d.isTomorrow()) return `Tomorrow • ${dateStr}`;
-  if (d.isYesterday()) return `Yesterday • ${dateStr}`;
-  return dateStr;
+  const dateStr = d.format('dddd, D [de] MMMM');
+  // @ts-ignore - dayjs plugin methods are added at runtime
+  if (d.isToday()) return `HOY  •  ${dateStr}`;
+  // @ts-ignore
+  if (d.isTomorrow()) return `MAÑANA  •  ${dateStr}`;
+  // @ts-ignore
+  if (d.isYesterday()) return `AYER  •  ${dateStr}`;
+  return dateStr.toUpperCase();
 }
 
 /**
@@ -60,8 +65,8 @@ export function isInPast(isoString: string): boolean {
 }
 
 /**
- * Format full date+time for display: "Tue, June 16 • 7:00 PM"
+ * Format full date+time for display: "mar, 16 de jun • 19:00"
  */
 export function formatDateTime(isoString: string): string {
-  return dayjs(isoString).format('ddd, MMM D • h:mm A');
+  return dayjs(isoString).format('ddd, D [de] MMM  •  HH:mm');
 }

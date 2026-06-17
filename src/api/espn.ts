@@ -230,7 +230,7 @@ export interface StoredMatchState {
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world';
 
 export async function fetchScoreboard(): Promise<ESPNScoreboardResponse> {
-  const response = await fetch(`${BASE}/scoreboard`, {
+  const response = await fetch(`${BASE}/scoreboard?dates=20260611-20260719&limit=200`, {
     headers: { Accept: 'application/json' },
   });
   if (!response.ok) {
@@ -279,16 +279,50 @@ export function getHomeAway(competition: ESPNCompetition): {
   return { home, away };
 }
 
-export function isLiveStatus(statusName: MatchStatusName): boolean {
-  return [
+export function isLiveStatus(statusName: string): boolean {
+  if (!statusName) return false;
+  
+  // Exact match check
+  const exactLive = [
     'STATUS_IN_PROGRESS',
     'STATUS_HALFTIME',
     'STATUS_EXTRA_TIME',
     'STATUS_EXTRA_TIME_HALFTIME',
     'STATUS_PENALTIES',
   ].includes(statusName);
+  
+  if (exactLive) return true;
+  
+  // Case-insensitive substring fallback check
+  const upper = statusName.toUpperCase();
+  return (
+    upper.includes('IN_PROGRESS') ||
+    upper.includes('HALFTIME') ||
+    upper.includes('EXTRA_TIME') ||
+    upper.includes('PENALTIES') ||
+    upper.includes('SHOOTOUT') ||
+    upper.includes('OVERTIME') ||
+    upper.includes('FIRST_HALF') ||
+    upper.includes('SECOND_HALF') ||
+    upper.includes('INPROGRESS') ||
+    upper.includes('LIVE')
+  );
 }
 
-export function isFinishedStatus(statusName: MatchStatusName): boolean {
-  return ['STATUS_FULL_TIME', 'STATUS_FINAL'].includes(statusName);
+export function isFinishedStatus(statusName: string): boolean {
+  if (!statusName) return false;
+  
+  // Exact match check
+  const exactFinished = ['STATUS_FULL_TIME', 'STATUS_FINAL'].includes(statusName);
+  if (exactFinished) return true;
+  
+  // Case-insensitive substring fallback check
+  const upper = statusName.toUpperCase();
+  return (
+    upper.includes('FULL_TIME') ||
+    upper.includes('FINAL') ||
+    upper.includes('FINISHED') ||
+    upper.includes('ABANDONED') ||
+    upper.includes('FULLTIME')
+  );
 }
