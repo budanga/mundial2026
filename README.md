@@ -20,7 +20,7 @@ To run this project locally, ensure you have the following installed:
 
 1. Clone the repository and navigate to the project directory:
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:budanga/mundial2026.git
    cd mundial2026
    ```
 
