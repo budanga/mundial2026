@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
@@ -21,6 +22,8 @@ import { MatchCard } from '../components/MatchCard';
 import { DateSectionHeader } from '../components/DateSectionHeader';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
 import { getAllPredictions, Prediction } from '../utils/storageUtils';
+import { sendTestNotification } from '../notifications/backgroundTask';
+import { translateTeamName } from '../utils/flagUtils';
 
 interface Section {
   key: string;
@@ -43,6 +46,19 @@ function groupByDate(events: ESPNEvent[]): Section[] {
     title: formatSectionDate(data[0].date),
     data,
   }));
+}
+
+function matchesSearch(event: ESPNEvent, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  const comp = event.competitions[0];
+  if (!comp) return false;
+  return comp.competitors.some((c) => {
+    const original = (c.team.shortDisplayName || c.team.displayName || c.team.name || '').toLowerCase();
+    const translated = translateTeamName(c.team.shortDisplayName || c.team.displayName || '').toLowerCase();
+    const abbr = (c.team.abbreviation || '').toLowerCase();
+    return original.includes(q) || translated.includes(q) || abbr.includes(q);
+  });
 }
 
 function findClosestSectionIndex(sections: Section[]): number {
@@ -78,12 +94,17 @@ export function MatchesScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [activeCard, setActiveCard] = useState<{ y: number; height: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
   const sectionLayouts = useRef<{ [key: string]: number }>({});
 
-  const sections: Section[] = data?.events ? groupByDate(data.events) : [];
+  const sections: Section[] = data?.events
+    ? groupByDate(
+      data.events.filter((e) => matchesSearch(e, searchQuery))
+    ).filter((s) => s.data.length > 0)
+    : [];
 
   const loadPredictions = useCallback(async () => {
     const all = await getAllPredictions();
@@ -210,11 +231,38 @@ export function MatchesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>⚽ Partidos</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={sendTestNotification}
+            style={styles.testButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.testButtonText}>Probar Notif.</Text>
+          </TouchableOpacity>
           {isFetching && !refreshing && (
             <ActivityIndicator size="small" color={Colors.gold} style={styles.fetchIndicator} />
           )}
           <Text style={styles.headerSub}>Copa Mundial 2026</Text>
         </View>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Buscar país"
+          placeholderTextColor={Colors.textMuted}
+          selectionColor={Colors.gold}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+            <Text style={styles.searchClear}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -248,8 +296,17 @@ export function MatchesScreen() {
         >
           {sections.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyText}>No hay partidos disponibles</Text>
+              {searchQuery.trim() ? (
+                <>
+                  <Text style={styles.emptyIcon}>🔍</Text>
+                  <Text style={styles.emptyText}>Sin resultados para "{searchQuery}"</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyIcon}>📋</Text>
+                  <Text style={styles.emptyText}>No hay partidos disponibles</Text>
+                </>
+              )}
             </View>
           ) : (
             flattenedItems
@@ -290,6 +347,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  testButton: {
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.gold,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.sm,
+  },
+  testButtonText: {
+    color: Colors.gold,
+    fontSize: Typography.fontSizeXS - 1,
+    fontWeight: Typography.fontWeightBold,
   },
   fetchIndicator: {
     marginRight: Spacing.xs,
@@ -366,5 +436,29 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeightBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  searchIcon: {
+    fontSize: 15,
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: Typography.fontSizeMD,
+    paddingVertical: Spacing.xs,
+  },
+  searchClear: {
+    color: Colors.textMuted,
+    fontSize: Typography.fontSizeMD,
+    paddingLeft: Spacing.xs,
   },
 });

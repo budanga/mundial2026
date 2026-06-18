@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchScoreboard, ESPNScoreboardResponse, isLiveStatus } from '../api/espn';
 import { cacheScoreboard, getCachedScoreboard } from '../utils/storageUtils';
 import { isWithinMinutes } from '../utils/dateUtils';
+import { syncMatchStatesWithNotifications } from '../notifications/backgroundTask';
 
 function computeRefetchInterval(data: ESPNScoreboardResponse | undefined): number | false {
   if (!data) return 60_000;
@@ -26,6 +27,9 @@ export function useScoreboard() {
       try {
         const data = await fetchScoreboard();
         await cacheScoreboard(data);
+        if (data.events) {
+          await syncMatchStatesWithNotifications(data.events).catch(console.error);
+        }
         return data;
       } catch (err) {
         // fallback to cached data
