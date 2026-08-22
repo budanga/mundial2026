@@ -45,7 +45,8 @@ interface CalculatedGroup {
 
 function calculateStandings(
   events: ESPNEvent[],
-  predictions: Record<string, Prediction>
+  predictions: Record<string, Prediction>,
+  showPredictions: boolean
 ): CalculatedGroup[] {
   const groupMap = new Map<string, Map<string, {
     team: { id: string; displayName: string; abbreviation: string; logo: string };
@@ -110,7 +111,7 @@ function calculateStandings(
 
     const isPlayedReal = isFinishedStatus(statusName) || isLiveStatus(statusName) || statusName === 'STATUS_HALFTIME';
     const pred = predictions[event.id];
-    const isPredicted = !isPlayedReal && pred !== undefined;
+    const isPredicted = showPredictions && !isPlayedReal && pred !== undefined;
 
     if (isPlayedReal || isPredicted) {
       let homeScore = 0;
@@ -203,6 +204,7 @@ function calculateStandings(
 export function GroupsScreen() {
   const { data, isLoading, error } = useScoreboard();
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
+  const [showPredictions, setShowPredictions] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -219,7 +221,7 @@ export function GroupsScreen() {
   );
 
   const events = data?.events ?? [];
-  const groups = calculateStandings(events, predictions);
+  const groups = calculateStandings(events, predictions, showPredictions);
 
   if (isLoading && !data) {
     return (
@@ -239,6 +241,34 @@ export function GroupsScreen() {
         <Text style={styles.headerTitle}>📊 Grupos</Text>
         <Text style={styles.headerSub}>Copa Mundial 2026</Text>
       </View>
+
+      {/* Selector de Modo de Vista */}
+      <View style={styles.selectorContainer}>
+        <TouchableOpacity
+          style={[styles.selectorButton, !showPredictions && styles.selectorActiveButton]}
+          onPress={() => setShowPredictions(false)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.selectorText, !showPredictions && styles.selectorActiveText]}>
+            📊 Oficial
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.selectorButton, showPredictions && styles.selectorActiveButton]}
+          onPress={() => setShowPredictions(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.selectorText, showPredictions && styles.selectorActiveText]}>
+            🔮 Con Pronósticos
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.selectorDescription}>
+        {showPredictions
+          ? 'Posiciones estimadas incluyendo tus predicciones para partidos futuros.'
+          : 'Posiciones oficiales basadas únicamente en partidos jugados.'}
+      </Text>
 
       {/* Legend */}
       <View style={styles.legend}>
@@ -284,6 +314,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  selectorContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.cardBgAlt,
+    borderRadius: Radius.md,
+    padding: Spacing.xs,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  selectorButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: Radius.sm,
+  },
+  selectorActiveButton: {
+    backgroundColor: Colors.gold,
+  },
+  selectorText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.fontSizeSM,
+    fontWeight: Typography.fontWeightBold,
+  },
+  selectorActiveText: {
+    color: Colors.background,
+  },
+  selectorDescription: {
+    color: Colors.textMuted,
+    fontSize: Typography.fontSizeXS,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   header: {
     paddingHorizontal: Spacing.lg,
