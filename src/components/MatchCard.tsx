@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -50,9 +50,24 @@ interface MatchCardProps {
   prediction: Prediction | null;
   onPredictionSaved: () => void;
   onStartEdit?: (y: number, height: number) => void;
+  isEditing: boolean;
+  onCancelEdit?: () => void;
+  onConfirmAndNext?: (homeScore: number, awayScore: number) => void;
+  onLayout?: (y: number, height: number) => void;
+  onRegisterHomeRef?: (ref: any) => void;
 }
 
-export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }: MatchCardProps) {
+export function MatchCard({
+  event,
+  prediction,
+  onPredictionSaved,
+  onStartEdit,
+  isEditing,
+  onCancelEdit,
+  onConfirmAndNext,
+  onLayout,
+  onRegisterHomeRef,
+}: MatchCardProps) {
   const comp = event.competitions[0];
   const { home, away } = getHomeAway(comp);
   const statusName = comp.status.type.name;
@@ -60,13 +75,15 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
   const isFinished = isFinishedStatus(statusName);
   const isScheduled = comp.status.type.state === 'pre';
 
-  const [isEditing, setIsEditing] = useState(false);
   const [homeInput, setHomeInput] = useState(prediction ? String(prediction.homeScore) : '');
   const [awayInput, setAwayInput] = useState(prediction ? String(prediction.awayScore) : '');
   const [cardY, setCardY] = useState(0);
   const [cardHeight, setCardHeight] = useState(0);
   const [isHomeFocused, setIsHomeFocused] = useState(false);
   const [isAwayFocused, setIsAwayFocused] = useState(false);
+
+  const homeInputRef = useRef<TextInput>(null);
+  const awayInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     setHomeInput(prediction ? String(prediction.homeScore) : '');
@@ -82,7 +99,6 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
   const displayClock = comp.status.displayClock;
 
   function handleStartEdit() {
-    setIsEditing(true);
     if (onStartEdit) {
       onStartEdit(cardY, cardHeight);
     }
@@ -99,8 +115,26 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
 
     await savePrediction(event.id, h, a);
     onPredictionSaved();
-    setIsEditing(false);
+    if (onConfirmAndNext) {
+      onConfirmAndNext(h, a);
+    }
   }
+
+  const handleHomeChange = (text: string) => {
+    const cleanText = text.replace(/[^0-9]/g, '');
+    setHomeInput(cleanText);
+
+    if (cleanText.trim().length > 0) {
+      if (awayInput.trim() === '') {
+        awayInputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleAwayChange = (text: string) => {
+    const cleanText = text.replace(/[^0-9]/g, '');
+    setAwayInput(cleanText);
+  };
 
   function renderStatusBadge() {
     if (isEditing) return null;
@@ -135,9 +169,15 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
       return (
         <View style={styles.editScoreContainer}>
           <TextInput
+            ref={(ref) => {
+              homeInputRef.current = ref;
+              if (onRegisterHomeRef) {
+                onRegisterHomeRef(ref);
+              }
+            }}
             style={styles.editScoreInput}
             value={homeInput}
-            onChangeText={setHomeInput}
+            onChangeText={handleHomeChange}
             keyboardType="number-pad"
             maxLength={2}
             placeholder={isHomeFocused ? "" : "0"}
@@ -149,9 +189,10 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
           />
           <Text style={styles.editScoreSeparator}>-</Text>
           <TextInput
+            ref={awayInputRef}
             style={styles.editScoreInput}
             value={awayInput}
-            onChangeText={setAwayInput}
+            onChangeText={handleAwayChange}
             keyboardType="number-pad"
             maxLength={2}
             placeholder={isAwayFocused ? "" : "0"}
@@ -203,8 +244,12 @@ export function MatchCard({ event, prediction, onPredictionSaved, onStartEdit }:
     <View
       style={styles.card}
       onLayout={(e) => {
-        setCardY(e.nativeEvent.layout.y);
-        setCardHeight(e.nativeEvent.layout.height);
+        const { y, height } = e.nativeEvent.layout;
+        setCardY(y);
+        setCardHeight(height);
+        if (onLayout) {
+          onLayout(y, height);
+        }
       }}
     >
       <View style={styles.cardHeader}>

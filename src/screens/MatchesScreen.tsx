@@ -48,15 +48,19 @@ function groupByDate(events: ESPNEvent[]): Section[] {
   }));
 }
 
+function removeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function matchesSearch(event: ESPNEvent, query: string): boolean {
   if (!query.trim()) return true;
-  const q = query.trim().toLowerCase();
+  const q = removeAccents(query.trim()).toLowerCase();
   const comp = event.competitions[0];
   if (!comp) return false;
   return comp.competitors.some((c) => {
-    const original = (c.team.shortDisplayName || c.team.displayName || c.team.name || '').toLowerCase();
-    const translated = translateTeamName(c.team.shortDisplayName || c.team.displayName || '').toLowerCase();
-    const abbr = (c.team.abbreviation || '').toLowerCase();
+    const original = removeAccents(c.team.shortDisplayName || c.team.displayName || c.team.name || '').toLowerCase();
+    const translated = removeAccents(translateTeamName(c.team.shortDisplayName || c.team.displayName || '')).toLowerCase();
+    const abbr = removeAccents(c.team.abbreviation || '').toLowerCase();
     return original.includes(q) || translated.includes(q) || abbr.includes(q);
   });
 }
@@ -95,10 +99,14 @@ export function MatchesScreen() {
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [activeCard, setActiveCard] = useState<{ y: number; height: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollYRef = useRef(0);
   const sectionLayouts = useRef<{ [key: string]: number }>({});
+  const cardLayouts = useRef<{ [key: string]: { y: number; height: number } }>({});
+  const homeInputRefs = useRef<{ [key: string]: any }>({});
+  const isTransitioningRef = useRef(false);
 
   const sections: Section[] = data?.events
     ? groupByDate(
@@ -125,6 +133,9 @@ export function MatchesScreen() {
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
       setKeyboardVisible(false);
       setActiveCard(null);
+      if (!isTransitioningRef.current) {
+        setEditingMatchId(null);
+      }
     });
 
     return () => {
@@ -205,18 +216,70 @@ export function MatchesScreen() {
       </View>
     );
 
+    const getNextAvailableMatch = (currentId: string): ESPNEvent | undefined => {
+      const displayedMatches = sections.flatMap((s) => s.data);
+      const currentIndex = displayedMatches.findIndex((m) => m.id === currentId);
+      if (currentIndex === -1) return undefined;
+
+      for (let i = currentIndex + 1; i < displayedMatches.length; i++) {
+        const match = displayedMatches[i];
+        const comp = match.competitions[0];
+        if (comp && comp.status.type.state === 'pre') {
+          return match;
+        }
+      }
+      return undefined;
+    };
+
     section.data.forEach((item) => {
       flattenedItems.push(
         <MatchCard
           key={item.id}
           event={item}
           prediction={predictions[item.id] || null}
+          isEditing={editingMatchId === item.id}
           onPredictionSaved={() => {
             loadPredictions();
-            setActiveCard(null);
           }}
           onStartEdit={(y, height) => {
+            setEditingMatchId(item.id);
             setActiveCard({ y, height });
+          }}
+          onCancelEdit={() => {
+            setEditingMatchId(null);
+            setActiveCard(null);
+          }}
+          onLayout={(y, height) => {
+            cardLayouts.current[item.id] = { y, height };
+          }}
+          onRegisterHomeRef={(ref) => {
+            if (ref) {
+              homeInputRefs.current[item.id] = ref;
+            } else {
+              delete homeInputRefs.current[item.id];
+            }
+          }}
+          onConfirmAndNext={() => {
+            const nextMatch = getNextAvailableMatch(item.id);
+            if (nextMatch) {
+              isTransitioningRef.current = true;
+              setEditingMatchId(nextMatch.id);
+              const nextLayout = cardLayouts.current[nextMatch.id];
+              if (nextLayout) {
+                setActiveCard(nextLayout);
+              }
+              setTimeout(() => {
+                const nextRef = homeInputRefs.current[nextMatch.id];
+                if (nextRef) {
+                  nextRef.focus();
+                }
+                isTransitioningRef.current = false;
+              }, 150);
+            } else {
+              setEditingMatchId(null);
+              setActiveCard(null);
+              Keyboard.dismiss();
+            }
           }}
         />
       );
@@ -458,7 +521,8 @@ const styles = StyleSheet.create({
   },
   searchClear: {
     color: Colors.textMuted,
-    fontSize: Typography.fontSizeMD,
-    paddingLeft: Spacing.xs,
+    fontSize: 22,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
 });
