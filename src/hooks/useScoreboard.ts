@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchScoreboard, ESPNScoreboardResponse, isLiveStatus } from '../api/espn';
 import { cacheScoreboard, getCachedScoreboard } from '../utils/storageUtils';
 import { isWithinMinutes } from '../utils/dateUtils';
@@ -21,6 +22,27 @@ function computeRefetchInterval(data: ESPNScoreboardResponse | undefined): numbe
 }
 
 export function useScoreboard() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Seed query cache with persistently stored scoreboard data on mount
+    const seedCache = async () => {
+      try {
+        const existing = queryClient.getQueryData<ESPNScoreboardResponse>(['scoreboard']);
+        if (!existing) {
+          const cached = await getCachedScoreboard();
+          if (cached) {
+            const parsed = JSON.parse(cached) as ESPNScoreboardResponse;
+            queryClient.setQueryData(['scoreboard'], parsed);
+          }
+        }
+      } catch (e) {
+        console.error('Error seeding scoreboard cache', e);
+      }
+    };
+    seedCache();
+  }, [queryClient]);
+
   return useQuery<ESPNScoreboardResponse>({
     queryKey: ['scoreboard'],
     queryFn: async () => {
@@ -42,5 +64,6 @@ export function useScoreboard() {
     },
     refetchInterval: (query) => computeRefetchInterval(query.state.data),
     staleTime: 0,
+    networkMode: 'always',
   });
 }

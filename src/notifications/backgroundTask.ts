@@ -21,7 +21,7 @@ export const BACKGROUND_FETCH_TASK = 'MUNDIAL2026_BACKGROUND_FETCH';
 // When the app transitions from background → active, we do one
 // silent sync (no notifications) to baseline state, then allow
 // subsequent polls to fire notifications normally.
-let _gracePeriodActive = false;
+let _gracePeriodActive = true;
 
 export function activateGracePeriod() {
   _gracePeriodActive = true;
@@ -274,26 +274,35 @@ export async function syncMatchStatesWithoutNotifications(events: ESPNEvent[]) {
   }
 }
 
+let _syncPromise = Promise.resolve();
+
 // ─── Foreground Polling (With Notifications) ─────────────
 // Called by React Query on subsequent refetches while app is open.
 // Sends live notifications but respects the grace period.
 export async function syncMatchStatesWithNotifications(events: ESPNEvent[]) {
-  if (_gracePeriodActive) {
-    // First poll after app reopen — silently baseline, then disable grace period
-    await syncMatchStatesWithoutNotifications(events);
-    _gracePeriodActive = false;
-    return;
-  }
+  // Chain to the promise to ensure sequential execution of notification syncs
+  _syncPromise = _syncPromise.then(async () => {
+    if (_gracePeriodActive) {
+      // First poll after app reopen — silently baseline, then disable grace period
+      await syncMatchStatesWithoutNotifications(events);
+      _gracePeriodActive = false;
+      return;
+    }
 
-  const relevant = events.filter(
-    (e) =>
-      isLiveStatus(e.status.type.name) ||
-      e.status.type.state === 'pre'
-  );
+    const relevant = events.filter(
+      (e) =>
+        isLiveStatus(e.status.type.name) ||
+        e.status.type.state === 'pre'
+    );
 
-  for (const event of relevant) {
-    await processEvent(event);
-  }
+    for (const event of relevant) {
+      await processEvent(event);
+    }
+  }).catch((err) => {
+    console.error('Error in syncMatchStatesWithNotifications:', err);
+  });
+
+  await _syncPromise;
 }
 
 // ─── Background Task Definition ─────────────────────────
